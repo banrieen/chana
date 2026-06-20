@@ -45,11 +45,11 @@
 
 ## 跨平台
 
-｜平台｜屏幕捕获｜录屏加速｜安装方式｜
-｜------｜---------｜---------｜---------｜
-｜ **macOS** (13+)｜ScreenCaptureKit｜VideoToolbox 硬件编码｜DMG / Homebrew｜
-｜ **Windows** (10+)｜DXGI Desktop Duplication + WGC｜NVENC / AMF｜MSI / Winget｜
-｜ **Linux** (Wayland/X11)｜PipeWire + XDG Portal｜VAAPI｜AppImage / deb / rpm / AUR｜
+| 平台 | 屏幕捕获 | 录屏加速 | 安装方式 |
+|------|---------|---------|---------|
+| **macOS** (13+) | ScreenCaptureKit | VideoToolbox 硬件编码 | DMG / Homebrew |
+| **Windows** (10+) | DXGI Desktop Duplication + WGC | NVENC / AMF | MSI / Winget |
+| **Linux** (Wayland/X11) | PipeWire + XDG Portal | VAAPI | AppImage / deb / rpm / AUR |
 
 三平台**功能一致、快捷键一致、文件格式一致**。一个肌肉记忆，走遍所有系统。
 
