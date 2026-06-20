@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ 刹那 Chana — 需求管理看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  
+  /* ── Header ── */
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 1.5em; display: flex; align-items: center; gap: 8px; }
+  .header .meta { display: flex; gap: 24px; font-size: 0.85em; opacity: 0.8; }
+  .header .meta span b { color: #64ffda; }
+
+  /* ── Layout ── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  
+  /* ── Summary Cards ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+  .summary-card { background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); transition: transform 0.2s; }
+  .summary-card:hover { transform: translateY(-2px); }
+  .summary-card .num { font-size: 2.2em; font-weight: 700; line-height: 1.2; }
+  .summary-card .label { color: #888; font-size: 0.85em; margin-top: 4px; }
+  .summary-card .num.blue { color: #2196F3; }
+  .summary-card .num.green { color: #4CAF50; }
+  .summary-card .num.orange { color: #FF9800; }
+  .summary-card .num.purple { color: #9C27B0; }
+  .summary-card .num.teal { color: #009688; }
+
+  /* ── Filter Bar ── */
+  .filter-bar { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .filter-bar label { font-size: 0.85em; color: #666; margin-right: -8px; }
+  .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9em; outline: none; transition: border-color 0.2s; }
+  .filter-bar select:focus, .filter-bar input:focus { border-color: #2196F3; }
+  .filter-bar .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
+  .filter-bar .btn-reset { background: #f0f0f0; color: #666; }
+  .filter-bar .btn-reset:hover { background: #e0e0e0; }
+  .filter-bar .result-count { margin-left: auto; color: #999; font-size: 0.85em; }
+
+  /* ── Charts Row ── */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .chart-card h3 { font-size: 0.95em; color: #555; margin-bottom: 16px; }
+  .chart-card canvas { max-height: 260px; }
+
+  /* ── Milestone Progress ── */
+  .milestone-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .milestone-section h3 { font-size: 1em; margin-bottom: 16px; color: #333; }
+  .milestone-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .milestone-row .ms-name { width: 80px; font-weight: 600; font-size: 0.9em; }
+  .milestone-row .progress-track { flex: 1; background: #f0f0f0; border-radius: 8px; height: 28px; position: relative; overflow: hidden; }
+  .milestone-row .progress-fill { height: 100%; border-radius: 8px; display: flex; align-items: center; padding-left: 12px; color: white; font-size: 0.8em; font-weight: 600; transition: width 0.5s ease; }
+  .milestone-row .ms-stats { width: 120px; text-align: right; font-size: 0.85em; color: #888; }
+
+  /* ── Requirements Table ── */
+  .table-section { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .table-section h3 { padding: 20px 20px 12px; font-size: 1em; color: #333; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: #f8f9fa; padding: 12px 14px; text-align: left; font-size: 0.8em; color: #666; font-weight: 600; border-bottom: 2px solid #eee; cursor: pointer; user-select: none; white-space: nowrap; }
+  thead th:hover { background: #eef1f5; }
+  thead th .sort-icon { opacity: 0.3; margin-left: 4px; }
+  thead th.sorted .sort-icon { opacity: 1; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; font-size: 0.85em; }
+  tbody tr:hover { background: #f8fbff; }
+  
+  /* ── Badges ── */
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: 600; white-space: nowrap; }
+  .badge-M { background: #FFEBEE; color: #C62828; }
+  .badge-O { background: #FFF3E0; color: #E65100; }
+  .badge-A { background: #E8F5E9; color: #2E7D32; }
+  .badge-Must { background: #E3F2FD; color: #1565C0; }
+  .badge-Should { background: #F3E5F5; color: #7B1FA2; }
+  .badge-Could { background: #F5F5F5; color: #616161; }
+  .status-规划中 { color: #1976D2; }
+  .status-研发中 { color: #F57F17; font-weight: 600; }
+  .status-测试中 { color: #E65100; font-weight: 600; }
+  .status-已交付 { color: #2E7D32; font-weight: 700; }
+  .status-已搁置 { color: #C62828; text-decoration: line-through; }
+
+  /* ── Dependency Graph ── */
+  .deps-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .deps-section h3 { font-size: 1em; margin-bottom: 12px; color: #333; }
+  .dep-flow { font-family: "SF Mono", "Fira Code", monospace; font-size: 0.82em; line-height: 1.8; color: #555; white-space: pre-wrap; }
+
+  /* ── Detail Modal ── */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 28px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .modal .field { margin-bottom: 12px; }
+  .modal .field-label { font-size: 0.8em; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal .field-value { font-size: 0.95em; margin-top: 2px; }
+  .modal .close { float: right; cursor: pointer; font-size: 1.5em; color: #ccc; line-height: 1; }
+  .modal .close:hover { color: #333; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ 刹那 Chana — 需求管理看板</h1>
+  <div class="meta">
+    <span>总需求: <b id="m-total">28</b></span>
+    <span>已交付: <b id="m-done">0</b></span>
+    <span>进行中: <b id="m-progress">0</b></span>
+    <span>总工作量: <b id="m-effort">0</b>人天</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="summary-card"><div class="num blue" id="c-total">28</div><div class="label">需求总数</div></div>
+    <div class="summary-card"><div class="num green" id="c-done">0</div><div class="label">已交付</div></div>
+    <div class="summary-card"><div class="num orange" id="c-progress">0</div><div class="label">进行中</div></div>
+    <div class="summary-card"><div class="num purple" id="c-effort">0</div><div class="label">总工作量(人天)</div></div>
+    <div class="summary-card"><div class="num teal" id="c-pct">0%</div><div class="label">完成率</div></div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <label>里程碑</label>
+    <select id="f-milestone"><option value="">全部</option></select>
+    <label>状态</label>
+    <select id="f-status"><option value="">全部</option></select>
+    <label>KANO</label>
+    <select id="f-kano"><option value="">全部</option></select>
+    <label>MoSCoW</label>
+    <select id="f-moscow"><option value="">全部</option></select>
+    <label>搜索</label>
+    <input type="text" id="f-search" placeholder="ID / 名称 / 描述...">
+    <button class="btn btn-reset" onclick="resetFilters()">重置</button>
+    <span class="result-count" id="result-count">显示 28 / 28 条</span>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card"><h3>需求状态分布</h3><canvas id="chart-status"></canvas></div>
+    <div class="chart-card"><h3>里程碑需求量 vs 完成量</h3><canvas id="chart-milestone"></canvas></div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card"><h3>KANO 分类占比</h3><canvas id="chart-kano"></canvas></div>
+    <div class="chart-card"><h3>各里程碑工作量(人天)</h3><canvas id="chart-effort"></canvas></div>
+  </div>
+
+  <!-- Milestone Progress -->
+  <div class="milestone-section">
+    <h3>里程碑进度条</h3>
+    <div id="milestone-progress"></div>
+  </div>
+
+  <!-- Dependency Graph -->
+  <div class="deps-section">
+    <h3>需求依赖关系</h3>
+    <div class="dep-flow" id="dep-flow"></div>
+  </div>
+
+  <!-- Requirements Table -->
+  <div class="table-section">
+    <h3>需求明细表 <span style="font-weight:400;color:#999;font-size:0.85em;">(点击表头排序，点击行查看详情)</span></h3>
+    <div class="table-wrap">
+      <table id="req-table">
+        <thead>
+          <tr>
+            <th data-sort="req_id">ID <span class="sort-icon">↕</span></th>
+            <th data-sort="name">名称 <span class="sort-icon">↕</span></th>
+            <th data-sort="kano">KANO <span class="sort-icon">↕</span></th>
+            <th data-sort="moscow">MoSCoW <span class="sort-icon">↕</span></th>
+            <th data-sort="milestone">里程碑 <span class="sort-icon">↕</span></th>
+            <th data-sort="status">状态 <span class="sort-icon">↕</span></th>
+            <th data-sort="priority">P <span class="sort-icon">↕</span></th>
+            <th data-sort="effort_est">工作量 <span class="sort-icon">↕</span></th>
+            <th data-sort="owner">负责人 <span class="sort-icon">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="req-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ── Requirement Data ──────────────────────────────────
+const REQUIREMENTS = [
+  {req_id:"M01",name:"区域截图",description:"鼠标拖拽选择区域，实时显示坐标/尺寸",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:3.0,acceptance_criteria:"拖拽延迟<30ms，尺寸数字实时刷新",dependencies:"",risk_ids:"R01;R03",tags:"截图;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M02",name:"窗口截图",description:"自动识别窗口边界，点击选中",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:2.0,acceptance_criteria:"Win/macOS/Linux 窗口列表枚举正确",dependencies:"",risk_ids:"R01;R03",tags:"截图;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M03",name:"全屏截图",description:"截取全部显示器含多屏",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:1.0,acceptance_criteria:"多屏(最多6块)正确捕获",dependencies:"",risk_ids:"R01;R03",tags:"截图;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M04",name:"截图标注",description:"矩形/椭圆/箭头/文字/马赛克/序号标注",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:5.0,acceptance_criteria:"10种标注工具，含撤销(Ctrl+Z)",dependencies:"M01;M02;M03",risk_ids:"",tags:"标注;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M05",name:"复制到剪贴板",description:"截图后自动复制到系统剪贴板",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:1.0,acceptance_criteria:"PNG格式入剪贴板，无Alpha通道损失",dependencies:"M01",risk_ids:"",tags:"截图;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M06",name:"保存到本地",description:"自定义路径/格式/命名规则",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:2.0,acceptance_criteria:"支持PNG/JPEG/WebP，命名模板{{date}}{{time}}",dependencies:"M01",risk_ids:"",tags:"截图;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M07",name:"全局快捷键",description:"可自定义组合键，系统级注册",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:2.0,acceptance_criteria:"Win/Mac/Linux 热键注册，不与系统冲突",dependencies:"",risk_ids:"",tags:"效率;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M08",name:"系统托盘",description:"常驻托盘菜单",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:2.0,acceptance_criteria:"三平台托盘图标+右键菜单",dependencies:"",risk_ids:"",tags:"效率;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M09",name:"区域录屏",description:"选择区域录制MP4/MKV",kano:"M",moscow:"Must",milestone:"MVP",status:"规划中",priority:1,owner:"",effort_est:5.0,acceptance_criteria:"GPU编码(H.264)，CPU<10%",dependencies:"",risk_ids:"R02",tags:"录屏;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"M10",name:"录屏含音频",description:"系统音频+麦克风混音",kano:"M",moscow:"Must",milestone:"1.0",status:"规划中",priority:1,owner:"",effort_est:3.0,acceptance_criteria:"双通道混音，无画面声音不同步",dependencies:"M09",risk_ids:"R02",tags:"录屏;核心",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O01",name:"贴图(Pin)",description:"截图以浮动窗贴到屏幕最前",kano:"O",moscow:"Must",milestone:"1.0",status:"规划中",priority:2,owner:"",effort_est:5.0,acceptance_criteria:"支持缩放/旋转/透明度，多贴图同时存在",dependencies:"M05",risk_ids:"",tags:"贴图",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O02",name:"滚动长截图",description:"窗口内容滚动拼接长图",kano:"O",moscow:"Must",milestone:"1.0",status:"规划中",priority:2,owner:"",effort_est:5.0,acceptance_criteria:"自动检测滚动区域，拼接无接缝",dependencies:"M01",risk_ids:"",tags:"截图",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O03",name:"延时截图",description:"3/5/10秒倒计时截图",kano:"O",moscow:"Should",milestone:"1.0",status:"规划中",priority:3,owner:"",effort_est:1.0,acceptance_criteria:"倒计时UI + 取消(Esc)",dependencies:"M01",risk_ids:"",tags:"截图",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O04",name:"OCR文字识别",description:"PaddleOCR ONNX 本地引擎提取文字",kano:"O",moscow:"Must",milestone:"1.0",status:"规划中",priority:2,owner:"",effort_est:5.0,acceptance_criteria:"中英文识别准确率>95%，一键复制全文",dependencies:"",risk_ids:"R04",tags:"OCR;AI",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:"模型内嵌安装包离线可用"},
+  {req_id:"O05",name:"取色器",description:"屏幕任意位置取色",kano:"O",moscow:"Should",milestone:"1.0",status:"规划中",priority:3,owner:"",effort_est:2.0,acceptance_criteria:"HEX/RGB/HSL三格式，放大镜预览",dependencies:"",risk_ids:"",tags:"工具",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O06",name:"GIF录制",description:"轻量GIF录制",kano:"O",moscow:"Should",milestone:"1.0",status:"规划中",priority:3,owner:"",effort_est:3.0,acceptance_criteria:"帧率可调(5-30fps)，时长限制提示",dependencies:"M09",risk_ids:"R02",tags:"录屏",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O07",name:"标注历史",description:"标注元素后期可编辑",kano:"O",moscow:"Should",milestone:"1.0",status:"规划中",priority:3,owner:"",effort_est:3.0,acceptance_criteria:"保存.chanax格式，重新打开可编辑",dependencies:"M04",risk_ids:"",tags:"标注",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O08",name:"分享链接",description:"上传图床生成链接",kano:"O",moscow:"Could",milestone:"1.5",status:"规划中",priority:4,owner:"",effort_est:2.0,acceptance_criteria:"支持自定义图床(S3/Imgur/Gitee)",dependencies:"M06",risk_ids:"",tags:"分享",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O09",name:"截图编号",description:"自动添加序号标记 #1 #2",kano:"O",moscow:"Could",milestone:"1.5",status:"规划中",priority:4,owner:"",effort_est:1.0,acceptance_criteria:"连续编号+重置能力",dependencies:"M04",risk_ids:"",tags:"标注",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"O10",name:"窗口录制",description:"自动选择并追踪窗口录制",kano:"O",moscow:"Should",milestone:"1.0",status:"规划中",priority:3,owner:"",effort_est:2.0,acceptance_criteria:"窗口移动/缩放时录制区域自动跟随",dependencies:"M09",risk_ids:"",tags:"录屏",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A01",name:"自毁截图",description:"截后不落磁盘，阅后即焚",kano:"A",moscow:"Could",milestone:"1.5",status:"规划中",priority:5,owner:"",effort_est:2.0,acceptance_criteria:"内存驻留，关闭浮窗即销毁",dependencies:"M01",risk_ids:"",tags:"截图;隐私",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A02",name:"二维码识别",description:"截图内二维码/条码识别",kano:"A",moscow:"Could",milestone:"1.5",status:"规划中",priority:5,owner:"",effort_est:1.0,acceptance_criteria:"QR + 常见条码(EAN/UPC/Code128)",dependencies:"",risk_ids:"",tags:"OCR;工具",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A03",name:"屏幕尺子",description:"像素级测量工具",kano:"A",moscow:"Could",milestone:"1.5",status:"规划中",priority:5,owner:"",effort_est:2.0,acceptance_criteria:"水平+垂直测量，实时像素数显示",dependencies:"",risk_ids:"",tags:"工具",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A04",name:"截图搜索",description:"本地OCR索引全文搜索",kano:"A",moscow:"Could",milestone:"1.5",status:"规划中",priority:5,owner:"",effort_est:3.0,acceptance_criteria:"PaddleOCR索引，模糊搜索，结果高亮",dependencies:"O04",risk_ids:"",tags:"OCR;AI",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A05",name:"自动美化",description:"圆角/阴影/背景模板",kano:"A",moscow:"Could",milestone:"1.5",status:"规划中",priority:5,owner:"",effort_est:2.0,acceptance_criteria:"5+预设模板，实时预览",dependencies:"M04",risk_ids:"",tags:"美化",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:""},
+  {req_id:"A06",name:"AI抠图",description:"主体智能抠图去背景",kano:"A",moscow:"Could",milestone:"2.0",status:"规划中",priority:5,owner:"",effort_est:5.0,acceptance_criteria:"需调研本地模型方案(BRIA/rembg)",dependencies:"",risk_ids:"",tags:"AI",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:"需调研"},
+  {req_id:"A07",name:"录屏自动编辑",description:"裁剪静默段+缩放动效",kano:"A",moscow:"Could",milestone:"2.0",status:"规划中",priority:5,owner:"",effort_est:8.0,acceptance_criteria:"需调研自动编辑算法",dependencies:"M09",risk_ids:"",tags:"录屏;AI",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:"需调研"},
+  {req_id:"A08",name:"团队共享库",description:"团队截图/录屏统一管理",kano:"A",moscow:"Could",milestone:"2.0",status:"规划中",priority:5,owner:"",effort_est:10.0,acceptance_criteria:"需配套服务端(不在 v2.0 范围)",dependencies:"",risk_ids:"",tags:"团队",created_at:"2026-06-20",updated_at:"2026-06-20",version:"v1.0",notes:"需服务端"},
+];
+
+const MILESTONES = ["Demo","MVP","1.0","1.5","2.0"];
+const STATUSES = ["规划中","研发中","测试中","已交付","已搁置"];
+const KANO_TYPES = ["M","O","A"];
+const MOSCOW_TYPES = ["Must","Should","Could"];
+const STATUS_COLORS = {"规划中":"#42A5F5","研发中":"#FFEE58","测试中":"#FFA726","已交付":"#66BB6A","已搁置":"#EF5350"};
+const MS_COLORS = {"Demo":"#7E57C2","MVP":"#2196F3","1.0":"#4CAF50","1.5":"#FF9800","2.0":"#F44336"};
+
+let filtered = [...REQUIREMENTS];
+let sortField = "req_id";
+let sortAsc = true;
+let charts = {};
+
+// ── Init Filters ──
+function initFilters() {
+  const fillSelect = (id, values) => {
+    const sel = document.getElementById(id);
+    values.forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); });
+  };
+  fillSelect("f-milestone", MILESTONES);
+  fillSelect("f-status", STATUSES);
+  fillSelect("f-kano", KANO_TYPES);
+  fillSelect("f-moscow", MOSCOW_TYPES);
+  ["f-milestone","f-status","f-kano","f-moscow","f-search"].forEach(id => {
+    document.getElementById(id).addEventListener("input", applyFilters);
+  });
+}
+
+function applyFilters() {
+  const ms = document.getElementById("f-milestone").value;
+  const st = document.getElementById("f-status").value;
+  const kn = document.getElementById("f-kano").value;
+  const mo = document.getElementById("f-moscow").value;
+  const search = document.getElementById("f-search").value.toLowerCase();
+
+  filtered = REQUIREMENTS.filter(r => {
+    if (ms && r.milestone !== ms) return false;
+    if (st && r.status !== st) return false;
+    if (kn && r.kano !== kn) return false;
+    if (mo && r.moscow !== mo) return false;
+    if (search) {
+      const hay = `${r.req_id} ${r.name} ${r.description} ${r.tags}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+  sortReqs();
+  renderTable();
+  document.getElementById("result-count").textContent = `显示 ${filtered.length} / ${REQUIREMENTS.length} 条`;
+}
+
+function resetFilters() {
+  ["f-milestone","f-status","f-kano","f-moscow","f-search"].forEach(id => { document.getElementById(id).value = ""; });
+  applyFilters();
+}
+
+// ── Sorting ──
+function sortReqs() {
+  filtered.sort((a, b) => {
+    let av = a[sortField], bv = b[sortField];
+    if (typeof av === "string") { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ? 1 : -1;
+    return 0;
+  });
+}
+
+// ── Render Table ──
+function renderTable() {
+  const tbody = document.getElementById("req-tbody");
+  tbody.innerHTML = "";
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.onclick = () => showDetail(r.req_id);
+    tr.innerHTML = `
+      <td><b>${r.req_id}</b></td>
+      <td>${r.name}</td>
+      <td><span class="badge badge-${r.kano}">${r.kano}</span></td>
+      <td><span class="badge badge-${r.moscow}">${r.moscow}</span></td>
+      <td>${r.milestone}</td>
+      <td class="status-${r.status}">${r.status}</td>
+      <td>${r.priority}</td>
+      <td>${r.effort_est}d</td>
+      <td>${r.owner || "—"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Update sort indicators
+  document.querySelectorAll("thead th").forEach(th => {
+    th.classList.remove("sorted");
+    th.querySelector(".sort-icon").textContent = "↕";
+  });
+  const sortedTh = document.querySelector(`thead th[data-sort="${sortField}"]`);
+  if (sortedTh) {
+    sortedTh.classList.add("sorted");
+    sortedTh.querySelector(".sort-icon").textContent = sortAsc ? "↑" : "↓";
+  }
+}
+
+// ── Detail Modal ──
+function showDetail(id) {
+  const r = REQUIREMENTS.find(x => x.req_id === id);
+  if (!r) return;
+  const deps = r.dependencies ? r.dependencies.split(";").map(d => {
+    const dep = REQUIREMENTS.find(x => x.req_id === d.trim());
+    return dep ? `${d.trim()}: ${dep.name} [${dep.status}]` : d;
+  }).join("<br>") : "无";
+  const dependents = REQUIREMENTS.filter(x => {
+    const xDeps = x.dependencies.split(";").map(d => d.trim());
+    return xDeps.includes(id);
+  }).map(x => `${x.req_id}: ${x.name} [${x.status}]`).join("<br>") || "无";
+
+  document.getElementById("modal-content").innerHTML = `
+    <h2><span class="badge badge-${r.kano}">${r.req_id}</span> ${r.name}</h2>
+    <div class="field"><div class="field-label">描述</div><div class="field-value">${r.description}</div></div>
+    <div class="field"><div class="field-label">验收标准</div><div class="field-value">${r.acceptance_criteria}</div></div>
+    <div class="field"><div class="field-label">KANO / MoSCoW</div><div class="field-value">
+      <span class="badge badge-${r.kano}">${r.kano}</span>
+      <span class="badge badge-${r.moscow}">${r.moscow}</span>
+      优先级 P${r.priority}
+    </div></div>
+    <div class="field"><div class="field-label">里程碑 / 状态</div><div class="field-value">
+      ${r.milestone} — <span class="status-${r.status}">${r.status}</span>
+    </div></div>
+    <div class="field"><div class="field-label">工作量 / 负责人</div><div class="field-value">${r.effort_est} 人天 / ${r.owner || "未分配"}</div></div>
+    <div class="field"><div class="field-label">依赖需求</div><div class="field-value">${deps}</div></div>
+    <div class="field"><div class="field-label">被以下需求依赖</div><div class="field-value">${dependents}</div></div>
+    <div class="field"><div class="field-label">标签</div><div class="field-value">${r.tags || "无"}</div></div>
+    <div class="field"><div class="field-label">关联风险</div><div class="field-value">${r.risk_ids || "无"}</div></div>
+    <div class="field"><div class="field-label">版本 / 更新时间</div><div class="field-value">${r.version} / ${r.updated_at}</div></div>
+    ${r.notes ? `<div class="field"><div class="field-label">备注</div><div class="field-value">${r.notes}</div></div>` : ""}
+  `;
+  document.getElementById("modal").classList.add("active");
+}
+function closeModal() { document.getElementById("modal").classList.remove("active"); }
+
+// ── Summary Stats ──
+function renderSummary() {
+  const total = REQUIREMENTS.length;
+  const done = REQUIREMENTS.filter(r => r.status === "已交付").length;
+  const inProgress = REQUIREMENTS.filter(r => ["研发中","测试中"].includes(r.status)).length;
+  const totalEffort = REQUIREMENTS.reduce((s, r) => s + r.effort_est, 0);
+  const pct = (done / total * 100).toFixed(1);
+
+  document.getElementById("m-total").textContent = total;
+  document.getElementById("m-done").textContent = done;
+  document.getElementById("m-progress").textContent = inProgress;
+  document.getElementById("m-effort").textContent = totalEffort.toFixed(1);
+  document.getElementById("c-total").textContent = total;
+  document.getElementById("c-done").textContent = done;
+  document.getElementById("c-progress").textContent = inProgress;
+  document.getElementById("c-effort").textContent = totalEffort.toFixed(1);
+  document.getElementById("c-pct").textContent = pct + "%";
+}
+
+// ── Charts ──
+function renderCharts() {
+  // Status chart
+  const statusData = STATUSES.map(s => REQUIREMENTS.filter(r => r.status === s).length);
+  charts.status = new Chart(document.getElementById("chart-status"), {
+    type: "doughnut",
+    data: { labels: STATUSES, datasets: [{ data: statusData, backgroundColor: STATUSES.map(s => STATUS_COLORS[s]) }] },
+    options: { plugins: { legend: { position: "right" } } }
+  });
+
+  // Milestone chart
+  const msTotal = MILESTONES.map(m => REQUIREMENTS.filter(r => r.milestone === m).length);
+  const msDone = MILESTONES.map(m => REQUIREMENTS.filter(r => r.milestone === m && r.status === "已交付").length);
+  charts.milestone = new Chart(document.getElementById("chart-milestone"), {
+    type: "bar",
+    data: { labels: MILESTONES, datasets: [
+      { label: "需求数", data: msTotal, backgroundColor: "#42A5F5" },
+      { label: "已完成", data: msDone, backgroundColor: "#66BB6A" }
+    ]},
+    options: { plugins: { legend: { position: "top" } }, scales: { y: { beginAtZero: true, stepSize: 1 } } }
+  });
+
+  // KANO chart
+  const kanoData = KANO_TYPES.map(k => REQUIREMENTS.filter(r => r.kano === k).length);
+  charts.kano = new Chart(document.getElementById("chart-kano"), {
+    type: "pie",
+    data: { labels: ["基本型(M)","期望型(O)","兴奋型(A)"], datasets: [{ data: kanoData, backgroundColor: ["#EF5350","#FFA726","#66BB6A"] }] },
+    options: { plugins: { legend: { position: "right" } } }
+  });
+
+  // Effort chart
+  const msEffort = MILESTONES.map(m => REQUIREMENTS.filter(r => r.milestone === m).reduce((s, r) => s + r.effort_est, 0));
+  charts.effort = new Chart(document.getElementById("chart-effort"), {
+    type: "bar",
+    data: { labels: MILESTONES, datasets: [{ label: "工作量(人天)", data: msEffort, backgroundColor: MILESTONES.map(m => MS_COLORS[m]) }] },
+    options: { indexAxis: "y", plugins: { legend: { display: false } } }
+  });
+}
+
+// ── Milestone Progress Bars ──
+function renderMilestoneProgress() {
+  const container = document.getElementById("milestone-progress");
+  container.innerHTML = "";
+  MILESTONES.forEach(m => {
+    const reqs = REQUIREMENTS.filter(r => r.milestone === m);
+    const done = reqs.filter(r => r.status === "已交付").length;
+    const effort = reqs.reduce((s, r) => s + r.effort_est, 0);
+    const pct = reqs.length ? (done / reqs.length * 100) : 0;
+    const row = document.createElement("div");
+    row.className = "milestone-row";
+    row.innerHTML = `
+      <div class="ms-name">${m}</div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:${pct}%; background:${MS_COLORS[m]}">
+          ${pct > 10 ? pct.toFixed(0) + "%" : ""}
+        </div>
+      </div>
+      <div class="ms-stats">${done}/${reqs.length} · ${effort.toFixed(1)}d</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// ── Dependency Graph ──
+function renderDepGraph() {
+  const graph = `MVP 核心管道:
+  M03(全屏) ──┐
+  M02(窗口) ──┼── M01(区域) ─► M04(标注) ─► M05(剪贴板) + M06(本地保存)
+               │
+               └── M07(快捷键) + M08(托盘)  ← 全局基础设施
+               M09(区域录屏) ─► M10(录屏含音频)  ← 独立管道
+
+1.0 增量:
+  M04(标注) ─► O07(标注历史)   ← 标注可编辑需标注引擎完成
+  M01 ─► O02(长截图)           ← 长截图基于区域选择
+  O01(贴图) 独立模块
+  O04(OCR) 独立模块 ─► O05(取色器) 基础可复用
+  M09 ─► O06(GIF) + O10(窗口录制)  ← 录屏管道扩展
+
+1.5 增量:
+  O04(OCR) ─► A04(截图搜索)    ← 搜索依赖OCR索引
+  M04(标注) ─► A05(自动美化)    ← 标注引擎扩展
+  A01,A02,A03 独立模块
+
+2.0 增量:
+  A06(AI抠图) 独立调研/模块
+  M09 ─► A07(录屏编辑)         ← 录屏后处理
+  A08(共享库) 需服务端支撑`;
+  document.getElementById("dep-flow").textContent = graph;
+}
+
+// ── Table Sort Events ──
+document.querySelectorAll("thead th[data-sort]").forEach(th => {
+  th.addEventListener("click", () => {
+    const field = th.dataset.sort;
+    if (sortField === field) { sortAsc = !sortAsc; } else { sortField = field; sortAsc = true; }
+    sortReqs();
+    renderTable();
+  });
+});
+
+// ── Init ──
+initFilters();
+sortReqs();
+renderTable();
+renderSummary();
+renderCharts();
+renderMilestoneProgress();
+renderDepGraph();
+</script>
+</body>
+</html>

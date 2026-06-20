@@ -1,0 +1,155 @@
+{
+  "version": "1.0.0",
+  "description": "Chana Requirement Management Schema",
+  "fields": [
+    {
+      "name": "req_id",
+      "type": "string",
+      "required": true,
+      "pattern": "^[MOA]\\d{2}$",
+      "description": "需求ID，M=基本型/O=期望型/A=兴奋型 + 两位序号",
+      "max_length": 5,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "max_length": 50,
+      "description": "需求名称"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": true,
+      "max_length": 500,
+      "description": "需求详细描述"
+    },
+    {
+      "name": "kano",
+      "type": "enum",
+      "required": true,
+      "values": ["M", "O", "A"],
+      "description": "KANO分类: M=基本型, O=期望型, A=兴奋型"
+    },
+    {
+      "name": "moscow",
+      "type": "enum",
+      "required": true,
+      "values": ["Must", "Should", "Could", "Won't"],
+      "description": "MoSCoW优先级"
+    },
+    {
+      "name": "milestone",
+      "type": "enum",
+      "required": true,
+      "values": ["Demo", "MVP", "1.0", "1.5", "2.0"],
+      "description": "目标里程碑"
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "required": true,
+      "values": ["规划中", "研发中", "测试中", "已交付", "已搁置"],
+      "description": "需求状态",
+      "default": "规划中"
+    },
+    {
+      "name": "priority",
+      "type": "integer",
+      "required": true,
+      "min": 1,
+      "max": 5,
+      "description": "优先级 1(最高) ~ 5(最低)，由 kano+moscow 推导",
+      "auto_calculate": true
+    },
+    {
+      "name": "owner",
+      "type": "string",
+      "required": false,
+      "max_length": 30,
+      "description": "负责人",
+      "default": ""
+    },
+    {
+      "name": "effort_est",
+      "type": "float",
+      "required": true,
+      "min": 0.5,
+      "max": 30,
+      "description": "工作量估算（人天）"
+    },
+    {
+      "name": "acceptance_criteria",
+      "type": "string",
+      "required": true,
+      "max_length": 300,
+      "description": "验收标准"
+    },
+    {
+      "name": "dependencies",
+      "type": "string",
+      "required": false,
+      "description": "依赖需求ID列表，分号分隔，如 M01;M04"
+    },
+    {
+      "name": "risk_ids",
+      "type": "string",
+      "required": false,
+      "description": "关联风险ID，分号分隔，如 R01;R02"
+    },
+    {
+      "name": "tags",
+      "type": "string",
+      "required": false,
+      "description": "标签，分号分隔，如 截图;核心"
+    },
+    {
+      "name": "created_at",
+      "type": "datetime",
+      "required": true,
+      "format": "YYYY-MM-DD",
+      "description": "创建日期"
+    },
+    {
+      "name": "updated_at",
+      "type": "datetime",
+      "required": true,
+      "format": "YYYY-MM-DD",
+      "description": "最后更新日期"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "required": true,
+      "pattern": "^v\\d+\\.\\d+$",
+      "description": "需求版本号",
+      "default": "v1.0"
+    },
+    {
+      "name": "notes",
+      "type": "string",
+      "required": false,
+      "max_length": 500,
+      "description": "备注"
+    }
+  ],
+  "status_transitions": {
+    "规划中": ["研发中", "已搁置"],
+    "研发中": ["测试中", "规划中", "已搁置"],
+    "测试中": ["已交付", "研发中"],
+    "已交付": [],
+    "已搁置": ["规划中"]
+  },
+  "priority_matrix": {
+    "M+Must": 1,
+    "M+Should": 2,
+    "O+Must": 2,
+    "O+Should": 3,
+    "M+Could": 3,
+    "O+Could": 4,
+    "A+Must": 3,
+    "A+Should": 4,
+    "A+Could": 5
+  }
+}
